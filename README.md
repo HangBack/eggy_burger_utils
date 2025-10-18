@@ -56,7 +56,7 @@ obj:destroy()
 ### 创建一个类
 ```lua
 ---@class ClsName : ClassUtil, Parent...
-local ClsName = Class("ClsName", Parent...)
+local ClsName = Class("ClsName", Parent...) ---Parent为继承的类
 ```
 
 ### getter & setter
