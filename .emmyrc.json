@@ -1,0 +1,95 @@
+{
+  "codeAction": {
+    "insertSpace": false
+  },
+  "codeLens": {
+    "enable": true
+  },
+  "completion": {
+    "autoRequire": true,
+    "autoRequireFunction": "require",
+    "autoRequireNamingConvention": "keep",
+    "autoRequireSeparator": ".",
+    "baseFunctionIncludesName": true,
+    "callSnippet": false,
+    "enable": true,
+    "postfix": "@"
+  },
+  "diagnostics": {
+    "diagnosticInterval": 500,
+    "enable": true,
+    "enables": [],
+    "globals": [],
+    "globalsRegex": []
+  },
+  "doc": {
+    "syntax": "md"
+  },
+  "documentColor": {
+    "enable": true
+  },
+  "hint": {
+    "enable": true,
+    "indexHint": true,
+    "localHint": true,
+    "metaCallHint": true,
+    "overrideHint": true,
+    "paramHint": true
+  },
+  "hover": {
+    "enable": true
+  },
+  "inlineValues": {
+    "enable": true
+  },
+  "references": {
+    "enable": true,
+    "fuzzySearch": true,
+    "shortStringSearch": false
+  },
+  "reformat": {
+    "externalTool": null,
+    "externalToolRangeFormat": null,
+    "useDiff": false
+  },
+  "resource": {
+    "paths": []
+  },
+  "runtime": {
+    "classDefaultCall": {
+      "forceNonColon": true,
+      "forceReturnSelf": true,
+      "functionName": "init"
+    },
+    "extensions": [],
+    "frameworkVersions": [],
+    "nonstandardSymbol": [],
+    "requireLikeFunction": [],
+    "requirePattern": [],
+    "version": "LuaLatest"
+  },
+  "semanticTokens": {
+    "enable": true
+  },
+  "signature": {
+    "detailSignatureHelper": true
+  },
+  "strict": {
+    "arrayIndex": true,
+    "docBaseConstMatchBaseType": true,
+    "metaOverrideFileDefine": true,
+    "requirePath": false,
+    "typeCall": false
+  },
+  "workspace": {
+    "enableReindex": false,
+    "encoding": "utf-8",
+    "ignoreDir": [],
+    "ignoreGlobs": [],
+    "library": [],
+    "moduleMap": [],
+    "preloadFileSize": 0,
+    "reindexDuration": 5000,
+    "workspaceRoots": []
+  }
+}
