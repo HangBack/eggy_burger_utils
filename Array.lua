@@ -52,7 +52,7 @@ function Array:unshift(value)
     table.insert(self.data, 1, value)
 end
 
----去除头部元素
+---去除最后一个元素
 ---@return T
 function Array:pop()
     if self.__length <= 0 then
@@ -64,7 +64,7 @@ function Array:pop()
     return result
 end
 
----去除最后一个元素
+---去除头部元素
 ---@return T
 function Array:shift()
     if self.__length <= 0 then
@@ -246,25 +246,67 @@ function Array:sort(comparator)
     table.sort(self.data, comparator)
 end
 
--- 深拷贝（支持循环引用）
-local function deep_copy(orig, seen)
+-- 深拷贝（通过唯一标识符处理循环引用）
+local function deep_copy(orig, seen, id_counter)
     if type(orig) ~= "table" then
         return orig
     end
+    
     seen = seen or {}
-    if seen[orig] then
-        return seen[orig]
+    id_counter = id_counter or { value = 0 }
+    
+    -- 为当前表生成唯一ID（如果还没有）
+    if not rawget(orig, "__copy_id") then
+        id_counter.value = id_counter.value + 1
+        rawset(orig, "__copy_id", id_counter.value)
     end
+    
+    local obj_id = rawget(orig, "__copy_id")
+    
+    -- 检查是否已经复制过
+    if seen[obj_id] then
+        return seen[obj_id]
+    end
+    
     local copy = {}
-    seen[orig] = copy
+    seen[obj_id] = copy
+    
     for k, v in pairs(orig) do
-        copy[deep_copy(k, seen)] = deep_copy(v, seen)
+        if k ~= "__copy_id" then -- 跳过临时ID字段
+            local keyType = type(k)
+            if keyType == "string" or keyType == "number" then
+                copy[k] = deep_copy(v, seen, id_counter)
+            end
+        end
     end
+    
     local mt = getmetatable(orig)
     if mt then
         setmetatable(copy, mt)
     end
+    
     return copy
+end
+
+-- 清理临时ID的辅助函数
+local function clean_copy_ids(tbl, visited)
+    if type(tbl) ~= "table" then
+        return
+    end
+    
+    visited = visited or {}
+    local id = rawget(tbl, "__copy_id")
+    
+    if id and not visited[id] then
+        visited[id] = true
+        rawset(tbl, "__copy_id", nil)
+        
+        for k, v in pairs(tbl) do
+            if type(v) == "table" then
+                clean_copy_ids(v, visited)
+            end
+        end
+    end
 end
 
 -- 构造函数
@@ -276,12 +318,18 @@ function Array:init(from)
         ---@cast from -T[], -?
         self.__length = from.__length
         for i = 1, self.__length do
-            self.data[i] = deep_copy(from.data[i])
+            local copied = deep_copy(from.data[i])
+            clean_copy_ids(from.data[i]) -- 清理源对象的临时ID
+            clean_copy_ids(copied) -- 清理复制对象的临时ID
+            self.data[i] = copied
         end
     elseif from and (type(from) == "table") then
         self.__length = #from
         for i = 1, self.__length do
-            self.data[i] = deep_copy(from[i])
+            local copied = deep_copy(from[i])
+            clean_copy_ids(from[i]) -- 清理源对象的临时ID
+            clean_copy_ids(copied) -- 清理复制对象的临时ID
+            self.data[i] = copied
         end
     end
 end
