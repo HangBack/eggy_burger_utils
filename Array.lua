@@ -1,10 +1,101 @@
----@generic T : ClassUtil
----@class Array<T> : ClassUtil
+---@class Array<T>
 ---@field [integer] T
 ---@field length integer 数组长度
----@field private data T[]
+---@field data T[]
 ---@field private __length integer
 local Array = Class("Array")
+
+-- 深拷贝（通过唯一标识符处理循环引用）
+local function deep_copy(orig, seen, id_counter)
+    if type(orig) ~= "table" then
+        return orig
+    end
+
+    seen = seen or {}
+    id_counter = id_counter or { value = 0 }
+
+    -- 为当前表生成唯一ID（如果还没有）
+    if not rawget(orig, "__copy_id") then
+        id_counter.value = id_counter.value + 1
+        rawset(orig, "__copy_id", id_counter.value)
+    end
+
+    local obj_id = rawget(orig, "__copy_id")
+
+    -- 检查是否已经复制过
+    if seen[obj_id] then
+        return seen[obj_id]
+    end
+
+    local copy = {}
+    seen[obj_id] = copy
+
+    for k, v in pairs(orig) do
+        if k ~= "__copy_id" then -- 跳过临时ID字段
+            local keyType = type(k)
+            if keyType == "string" or keyType == "number" then
+                copy[k] = deep_copy(v, seen, id_counter)
+            end
+        end
+    end
+
+    local mt = getmetatable(orig)
+    if mt then
+        setmetatable(copy, mt)
+    end
+
+    return copy
+end
+
+-- 清理临时ID的辅助函数
+local function clean_copy_ids(tbl, visited)
+    if type(tbl) ~= "table" then
+        return
+    end
+
+    visited = visited or {}
+    local id = rawget(tbl, "__copy_id")
+
+    if id and not visited[id] then
+        visited[id] = true
+        rawset(tbl, "__copy_id", nil)
+
+        for k, v in pairs(tbl) do
+            if type(v) == "table" then
+                clean_copy_ids(v, visited)
+            end
+        end
+    end
+end
+
+-- 构造函数
+---@generic T
+---@param from? T[] | Array<T>
+---@return Array<T>
+function Array:init(from)
+    self.data = {}
+    self.__length = 0
+    if from and type(from) == "table" and from --[[@as table]].__name == "Array" then
+        ---@cast from -T[], -?
+        self.__length = from.__length
+        for i = 1, self.__length do
+            local copied = deep_copy(from.data[i])
+            clean_copy_ids(from.data[i]) -- 清理源对象的临时ID
+            clean_copy_ids(copied)       -- 清理复制对象的临时ID
+            self.data[i] = copied
+        end
+    elseif from and (type(from) == "table") then
+        ---@cast from -T[], -?
+        self.__length = #from
+        for i = 1, self.__length do
+            local copied = deep_copy(from[i])
+            clean_copy_ids(from[i]) -- 清理源对象的临时ID
+            clean_copy_ids(copied)  -- 清理复制对象的临时ID
+            self.data[i] = copied
+        end
+    end
+    return self
+end
 
 ---@param key integer
 function Array:__custom_index(key)
@@ -136,12 +227,15 @@ end
 ---数组切片
 ---@param start integer 开始索引
 ---@param over integer 结束索引
----@param step integer 步数
+---@param step integer? 步数
 ---@return Array<T>
 function Array:slice(start, over, step)
     local data = self.data
     local newArr = Array() --[[@as Array<T>]]
-    for i = math.clamp(start, 1, self.__length), math.clamp(over, 1, self.__length), step do
+    local start_idx = math.tointeger(math.clamp(start, 1, self.__length))
+    local over_idx = math.tointeger(math.clamp(over, 1, self.__length))
+    step = step or 1
+    for i = start_idx, over_idx, step do
         newArr:push(data[i])
     end
     return newArr
@@ -209,7 +303,7 @@ function Array:filter(predicate)
     for i = 1, self.__length do
         local item = data[i]
         if predicate(item) then
-            newArray:append(item)
+            newArray:push(item)
         end
     end
     return newArray
@@ -234,9 +328,8 @@ end
 
 ---@param func fun(index: integer, item: T)
 function Array:for_each(func)
-    local data = Array(self.data).data
     for i = 1, self.__length do
-        func(i, data[i])
+        func(i, self.data[i])
     end
 end
 
@@ -244,94 +337,6 @@ end
 ---@param comparator fun(a: T, b: T): boolean 比较函数，返回true表示a应排在b前面
 function Array:sort(comparator)
     table.sort(self.data, comparator)
-end
-
--- 深拷贝（通过唯一标识符处理循环引用）
-local function deep_copy(orig, seen, id_counter)
-    if type(orig) ~= "table" then
-        return orig
-    end
-    
-    seen = seen or {}
-    id_counter = id_counter or { value = 0 }
-    
-    -- 为当前表生成唯一ID（如果还没有）
-    if not rawget(orig, "__copy_id") then
-        id_counter.value = id_counter.value + 1
-        rawset(orig, "__copy_id", id_counter.value)
-    end
-    
-    local obj_id = rawget(orig, "__copy_id")
-    
-    -- 检查是否已经复制过
-    if seen[obj_id] then
-        return seen[obj_id]
-    end
-    
-    local copy = {}
-    seen[obj_id] = copy
-    
-    for k, v in pairs(orig) do
-        if k ~= "__copy_id" then -- 跳过临时ID字段
-            local keyType = type(k)
-            if keyType == "string" or keyType == "number" then
-                copy[k] = deep_copy(v, seen, id_counter)
-            end
-        end
-    end
-    
-    local mt = getmetatable(orig)
-    if mt then
-        setmetatable(copy, mt)
-    end
-    
-    return copy
-end
-
--- 清理临时ID的辅助函数
-local function clean_copy_ids(tbl, visited)
-    if type(tbl) ~= "table" then
-        return
-    end
-    
-    visited = visited or {}
-    local id = rawget(tbl, "__copy_id")
-    
-    if id and not visited[id] then
-        visited[id] = true
-        rawset(tbl, "__copy_id", nil)
-        
-        for k, v in pairs(tbl) do
-            if type(v) == "table" then
-                clean_copy_ids(v, visited)
-            end
-        end
-    end
-end
-
--- 构造函数
----@param from? T[] | Array<T>
-function Array:init(from)
-    self.data = {}
-    self.__length = 0
-    if from and type(from) == "table" and from --[[@as table]].__name == "Array" then
-        ---@cast from -T[], -?
-        self.__length = from.__length
-        for i = 1, self.__length do
-            local copied = deep_copy(from.data[i])
-            clean_copy_ids(from.data[i]) -- 清理源对象的临时ID
-            clean_copy_ids(copied) -- 清理复制对象的临时ID
-            self.data[i] = copied
-        end
-    elseif from and (type(from) == "table") then
-        self.__length = #from
-        for i = 1, self.__length do
-            local copied = deep_copy(from[i])
-            clean_copy_ids(from[i]) -- 清理源对象的临时ID
-            clean_copy_ids(copied) -- 清理复制对象的临时ID
-            self.data[i] = copied
-        end
-    end
 end
 
 return Array

@@ -1,7 +1,5 @@
 ---@class ClassUtil
----@field private __name string 类名
----@field private init fun()
----@field private __destroyed boolean 是否已销毁
+---@field __name string 类名
 local ClassUtil = {}
 
 -- 自定义索引，必须有返回值，否则将报错
@@ -54,14 +52,6 @@ function ClassUtil:destroy()
 
     -- 3. 可选：添加一个标记表明对象已销毁
     self.__destroyed = true
-end
-
----@generic T : ClassUtil
----@param instance T
----@param cls_name `T`
----@return TypeGuard<T>
-function ClassUtil:instance_of(instance, cls_name)
-    return instance.__name == cls_name
 end
 
 -- 检查对象是否已销毁
@@ -133,9 +123,10 @@ local function find_new_custom_index(current_class)
 end
 
 
----@generic T: ClassUtil
+---@generic T
+---@[constructor("init")]
 ---@param class_name `T` 类名
----@return table
+---@return T
 function Class(class_name, ...)
     local parents = { ... }
     local class_table = {
